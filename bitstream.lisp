@@ -60,12 +60,12 @@
           (result (+ bits size)))
       ;; (ceiling (+ bit size) 8) is the total number of bytes touched
       ;; in the buffer
-      (flet ((ceiling (number divisor)
+      (flet ((ceiling* (number divisor)
                (loop for i from 0
                    while (> number 0) do
                      (decf number divisor)
                    finally (return i))))
-        (dotimes (i (the fixnum (ceiling (+ bit size) 8)))
+        (dotimes (i (the fixnum (ceiling* (+ bit size) 8)))
           (let ((shift (+ bit (* i -8)))
                 (j (+ buffer-index i)))
             (declare (type fixnum shift i j))
