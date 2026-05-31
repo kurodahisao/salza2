@@ -38,7 +38,8 @@
            (type bitstream-buffer-bit-count bits)
            (type bitstream-buffer buffer)
            (type function callback)
-           (optimize speed))
+           (optimize speed)
+           #+allegro (:explain :boxing :inlining))
   ;; BITS represents how many bits have been added to BUFFER so far,
   ;; so the FLOOR of it by 8 will give both the buffer byte index and
   ;; the bit index within that byte to where new bits should be
@@ -59,21 +60,27 @@
           (result (+ bits size)))
       ;; (ceiling (+ bit size) 8) is the total number of bytes touched
       ;; in the buffer
-      (dotimes (i (ceiling (+ bit size) 8))
-        (let ((shift (+ bit (* i -8)))
-              (j (+ buffer-index i)))
-          ;; Buffer filled up in the middle of CODE
-          (when (= j end)
-            (funcall callback buffer j))
-          ;; Merge part of CODE into the buffer
-          (setf (aref buffer (logand #.+bitstream-buffer-mask+ j))
-                (logior (logand #xFF (ash code shift)) merge-byte))
-          (setf merge-byte 0)))
+      (flet ((ceiling (number divisor)
+               (loop for i from 0
+                   while (> number 0) do
+                     (decf number divisor)
+                   finally (return i))))
+        (dotimes (i (the fixnum (ceiling (+ bit size) 8)))
+          (let ((shift (+ bit (* i -8)))
+                (j (+ buffer-index i)))
+            (declare (type fixnum shift i j))
+            ;; Buffer filled up in the middle of CODE
+            (when (= j end)
+              (funcall callback buffer j))
+            ;; Merge part of CODE into the buffer
+            (setf (aref buffer (logand (the fixnum #.+bitstream-buffer-mask+) j))
+              (logior (logand #xFF (the fixnum (ash code (the (integer -63 63) shift)))) merge-byte))
+            (setf merge-byte 0))))
       ;; Writing is done, and the buffer is full, so call the callback
       (when (= result #.+bitstream-buffer-bits+)
         (funcall callback buffer #.+bitstream-buffer-size+))
       ;; Return only the low bits of the sum
-      (logand #.+bitstream-buffer-bitmask+ result))))
+      (logand (the fixnum #.+bitstream-buffer-bitmask+) result))))
 
 (defun merge-octet (octet buffer bits callback)
   (declare (type octet octet)

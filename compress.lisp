@@ -34,7 +34,9 @@
            (type chains-buffer chains)
            (type input-index start end)
            (type function literal-fun length-fun distance-fun)
-           (optimize speed))
+           (optimize speed)
+           #+allegro (:explain :boxing :inlining))
+
   (let ((p start))
     (loop
      (when (= p end)
@@ -45,8 +47,8 @@
                 (type (integer 0 32768) distance))
        (cond ((zerop length)
               (funcall literal-fun (aref input p))
-              (setf p (logand (+ p 1) #xFFFF)))
+              (setf p (logand (the fixnum (+ p 1)) #xFFFF)))
              (t
               (funcall length-fun length)
               (funcall distance-fun distance)
-              (setf p (logand (+ p length) #xFFFF))))))))
+              (setf p (logand (the fixnum (+ p length)) #xFFFF))))))))
